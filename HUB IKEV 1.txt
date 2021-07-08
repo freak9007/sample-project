@@ -1,0 +1,70 @@
+Conf t
+Int g0/0 
+Ip add 80.10.20.1 255.255.255.252
+No shut
+
+int g1/0
+ip add 10.1.0.1 255.255.255.0
+no shut
+
+ip route 0.0.0.0 0.0.0.0 80.10.20.2    
+
+
+int tunnel 0
+ip add 172.16.0.1 255.255.255.0
+no shut
+ip mtu 1400
+ip tcp adjust-mss 1360
+tunnel mode gre multipoint
+tunnel source g0/0
+tunnel key 100
+ip nhrp map multicast dynamic
+ip nhrp authentication master
+ip nhrp network-id 10
+do wr
+
+do show dmvpn
+do show ip route
+
+router eigrp 10
+netw 172.16.0.1 0.0.0.255
+netw 10.1.0.1 0.0.0.0
+no auto
+
+int tunnel 0
+no ip split-horizon eigrp 10
+no ip next-hop-self eigrp 10
+traceroute 10.2.0.1    
+
+
+
+HUB    IKEV 1
+
+conf t
+crypto isakmp policy 10
+authentication pre-share
+encryption 3des
+hash md5
+group 2
+lifetime 86400
+
+exit
+
+crypto isakmp key dmvpnkey address 0.0.0.0 0.0.0.0
+crypto ipsec transform-set T-SET esp-aes 256 esp-sha-hmac
+mode transport
+
+exit
+
+crypto ipsec profile DMVPN_PROFILE
+set security-association lifetime seconds 86400
+set transform-set T-SET
+
+exit
+
+int tunnel 0
+tunnel protection ipsec profile DMVPN_PROFILE
+
+exit
+
+show run | sect crypto
